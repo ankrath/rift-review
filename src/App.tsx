@@ -9,12 +9,10 @@ const App = () => {
   useEffect(() => {
     const fetchPlayerData = async () => {
       try {
-        // Example player - replace with actual values
         const name = 'gameinn';
         const tag = 'EUW';
         const region = 'EUW';
 
-        // First, get summoner data
         const summonerResponse = await fetch(
           `${API_BASE_URL}/summoner/${name}/${tag}/${region}`,
         );
@@ -22,14 +20,12 @@ const App = () => {
         console.log('Summoner Data:', summonerData);
 
         if (summonerData.puuid) {
-          // Get ranked champion stats
           const championStatsResponse = await fetch(
             `${API_BASE_URL}/ranked-champions/${summonerData.puuid}/${region}`,
           );
           const championStats = await championStatsResponse.json();
           console.log('Ranked Champion Stats:', championStats);
 
-          // Get match history
           const matchHistoryResponse = await fetch(
             `${API_BASE_URL}/match-history/${summonerData.puuid}/${region}/ranked`,
           );

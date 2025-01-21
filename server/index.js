@@ -16,7 +16,6 @@ const allowedOrigins = ['http://localhost:3000', 'http://localhost:5173'];
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.indexOf(origin) === -1) {
@@ -32,7 +31,7 @@ app.use(
 
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // More strict in production
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000,
 });
 app.use(limiter);
 
@@ -128,12 +127,11 @@ app.get('/ranked/:summonerId/:region', async (req, res) => {
   }
 });
 
-// Add this new endpoint for ranked champion stats
 app.get('/ranked-champions/:puuid/:region', async (req, res) => {
   try {
     const { puuid, region } = req.params;
     const regionConfig = regionMappings[region];
-    const currentSeason = 'S2025'; // You might want to make this configurable
+    const currentSeason = 'S2025';
 
     const statsCacheKey = `ranked-champions-${region}-${puuid}-${currentSeason}`;
 
@@ -141,13 +139,12 @@ app.get('/ranked-champions/:puuid/:region', async (req, res) => {
       statsCacheKey,
       CACHE_DURATIONS.championStats,
       async () => {
-        // Get ranked solo queue matches for the current season
         const matchIdsResponse = await axios.get(
           `https://${regionConfig.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids`,
           {
             params: {
-              queue: 420, // Ranked Solo Queue
-              startTime: 1704758400, // January 9, 2025 (Start of S2025)
+              queue: 420,
+              startTime: 1704758400,
               count: 100,
             },
             headers: { 'X-Riot-Token': process.env.RIOT_API_KEY },
@@ -166,7 +163,6 @@ app.get('/ranked-champions/:puuid/:region', async (req, res) => {
 
         const matchDetails = await Promise.all(matchDetailsPromises);
 
-        // Process matches to get per-champion stats
         const championStats = {};
 
         matchDetails.forEach(match => {
@@ -202,7 +198,6 @@ app.get('/ranked-champions/:puuid/:region', async (req, res) => {
             participant.totalMinionsKilled + participant.neutralMinionsKilled;
         });
 
-        // Calculate final stats for each champion
         const finalStats = Object.values(championStats)
           .map(stats => ({
             championId: stats.championId,
@@ -220,7 +215,7 @@ app.get('/ranked-champions/:puuid/:region', async (req, res) => {
             },
             cs: (stats.cs / stats.games).toFixed(1),
           }))
-          .sort((a, b) => b.gamesPlayed - a.gamesPlayed); // Sort by most played
+          .sort((a, b) => b.gamesPlayed - a.gamesPlayed);
 
         return {
           season: currentSeason,
@@ -240,7 +235,7 @@ app.get('/ranked-champions/:puuid/:region', async (req, res) => {
 app.get('/match-history/:puuid/:region/:queue?', async (req, res) => {
   try {
     const { puuid, region } = req.params;
-    const queue = req.params.queue || 'ranked'; // 'ranked' or 'all'
+    const queue = req.params.queue || 'ranked';
     const regionConfig = regionMappings[region];
 
     const matchHistoryCacheKey = `match-history-${region}-${puuid}-${queue}`;
@@ -249,12 +244,11 @@ app.get('/match-history/:puuid/:region/:queue?', async (req, res) => {
       matchHistoryCacheKey,
       CACHE_DURATIONS.matchHistory,
       async () => {
-        // Get match IDs
         const matchIdsResponse = await axios.get(
           `https://${regionConfig.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids`,
           {
             params: {
-              queue: queue === 'ranked' ? 420 : undefined, // 420 for ranked solo/duo
+              queue: queue === 'ranked' ? 420 : undefined,
               count: 20,
               type: 'ranked',
             },
@@ -262,7 +256,6 @@ app.get('/match-history/:puuid/:region/:queue?', async (req, res) => {
           },
         );
 
-        // Get detailed match data
         const matchDetailsPromises = matchIdsResponse.data.map(matchId =>
           axios.get(
             `https://${regionConfig.regional}.api.riotgames.com/lol/match/v5/matches/${matchId}`,
@@ -274,30 +267,25 @@ app.get('/match-history/:puuid/:region/:queue?', async (req, res) => {
 
         const matchDetails = await Promise.all(matchDetailsPromises);
 
-        // Process each match
         return matchDetails.map(match => {
           const gameData = match.data;
           const participant = gameData.info.participants.find(
             p => p.puuid === puuid,
           );
 
-          // Calculate game duration in minutes and seconds
           const durationInSeconds = gameData.info.gameDuration;
           const minutes = Math.floor(durationInSeconds / 60);
           const seconds = durationInSeconds % 60;
 
-          // Calculate time ago
           const gameEndTimestamp = gameData.info.gameEndTimestamp;
           const timeAgo = getTimeAgo(gameEndTimestamp);
 
-          // Determine special achievements
           const achievements = [];
           if (participant.pentaKills > 0) achievements.push('Penta Kill');
           if (participant.quadraKills > 0) achievements.push('Quadra Kill');
           if (participant.tripleKills > 0) achievements.push('Triple Kill');
           if (participant.doubleKills > 0) achievements.push('Double Kill');
 
-          // Determine player performance badges
           const badges = [];
           if (participant.challenges?.teamDamagePercentage > 0.35)
             badges.push('MVP');
@@ -309,7 +297,7 @@ app.get('/match-history/:puuid/:region/:queue?', async (req, res) => {
 
           return {
             gameId: gameData.metadata.matchId,
-            queueType: 'Ranked Solo/Duo', // You might want to make this dynamic
+            queueType: 'Ranked Solo/Duo',
             timeAgo,
             result: participant.win ? 'Victory' : 'Defeat',
             duration: {
@@ -353,7 +341,7 @@ app.get('/match-history/:puuid/:region/:queue?', async (req, res) => {
               participant.item3,
               participant.item4,
               participant.item5,
-              participant.item6, // Ward item
+              participant.item6,
             ],
             vision: {
               score: participant.visionScore,
@@ -394,7 +382,6 @@ app.get('/match-history/:puuid/:region/:queue?', async (req, res) => {
   }
 });
 
-// Helper function to format time ago
 function getTimeAgo(timestamp) {
   const now = Date.now();
   const diffInSeconds = Math.floor((now - timestamp) / 1000);
@@ -407,7 +394,6 @@ function getTimeAgo(timestamp) {
   return `${Math.floor(diffInSeconds / 86400)} days ago`;
 }
 
-// Helper function to get multikill badge name
 function getMultiKillBadge(kills) {
   switch (kills) {
     case 2:
