@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const API_BASE_URL = 'http://localhost:3001'; // Adjust if your server runs on a different port
+const API_BASE_URL = 'http://localhost:3001';
 
 const App = () => {
   const [loading, setLoading] = useState(true);
@@ -9,12 +9,10 @@ const App = () => {
   useEffect(() => {
     const fetchPlayerData = async () => {
       try {
-        const name = 'gameinn';
-        const tag = 'EUW';
         const region = 'EUW';
 
         const summonerResponse = await fetch(
-          `${API_BASE_URL}/summoner/${name}/${tag}/${region}`,
+          `${API_BASE_URL}/summoner/gameinn/EUW/${region}`,
         );
         const summonerData = await summonerResponse.json();
         console.log('Summoner Data:', summonerData);
